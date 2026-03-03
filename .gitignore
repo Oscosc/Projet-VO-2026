@@ -1,2 +1,3 @@
 # Datasets folders
-datasets/*
+datasets/pattern_recognition/*
+datasets/object_tracking/*

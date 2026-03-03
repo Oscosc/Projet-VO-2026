@@ -1,6 +1,2 @@
-# Datasets folders
-datasets/pattern_recognition/*
-datasets/object_tracking/*
-
 # Python folders
 __pycache__

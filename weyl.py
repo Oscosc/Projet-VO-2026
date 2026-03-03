@@ -112,7 +112,9 @@ def WeylOptimized(image_in):
     return np.max(maximums - minimums)
 
 
-def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized, display_execution_time=True):
+def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized,
+                    display_execution_time=True,
+                    display_progress_bar=True):
     """ Cherche la position la plus probable pour un pattern dans une image.
 
     Args:
@@ -124,8 +126,9 @@ def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized, display_exec
         (par défaut True)
     
     Returns:
-        carte des disparités de Weyl dans l'image, le point où se trouve le minimum
+        image_out: carte des disparités de Weyl dans l'image, le point où se trouve le minimum
         est le point le plus probable de position du pattern.
+        position: position dans la carte des disparités où la disparité est la plus faible
     """
 
     nx, ny = image_in.shape
@@ -138,11 +141,13 @@ def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized, display_exec
     image_w_borders = cv2.copyMakeBorder(image_in, pady, pady, padx, padx, cv2.BORDER_CONSTANT, value=0.0)
     image_out = np.zeros((nx, ny))
     
-    for i in tqdm(range(nx)):
+    for i in tqdm(range(nx), disable=not display_progress_bar):
         for j in range(ny):
             zone = image_w_borders[i:i+px, j:j+py]
             diff = zone - pattern
             image_out[i, j] = WeylsFunction(diff)
+    
+    position = np.unravel_index(image_out.argmin(), image_out.shape)
 
 
     if(display_execution_time):
@@ -153,4 +158,101 @@ def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized, display_exec
         print(f"Average cell execution time : {total_time / (nx * ny)} seconds")
         print("------------------------------------------------------------------")
     
-    return image_out
+    return image_out, position
+
+
+def Disparity(img_left, img_right, patch_size=9, max_disparity=60, compute_right=False):
+    """ Calcule la carte de disparité de l'image A par rapport à l'image B.
+    Le calcul est effectué de façon vectoriel pour optimiser le temps d'exécution
+    (plutôt que de réutiliser la fonction WeylOptimized dans une boucle)
+
+    Args:
+        img_A: image de reférence pour le calcul de la carte de disparité
+        img_B: image de comparaison pour le calcul de la carte de disparité
+        patch_size: taille du patch de reconnaissance (default 9)
+        max_disparity: disparité maximale possible entre deux pixels, pour
+        accélérer la recherche (default 60)
+    
+    Returns:
+        Carte des disparités de l'image par la méthode de Weyl
+    """
+
+    Rfactor = 1.0
+    R2factor = 1
+    if compute_right :
+        Rfactor = -1.0
+        R2factor = 0
+
+    H, W = img_left.shape
+    K = patch_size
+    padding = K // 2
+    
+    best_disparity = np.zeros((H, W), dtype=np.float32)
+    min_costs = np.full((H, W), np.inf, dtype=np.float32)
+    
+    for d in tqdm(range(max_disparity)):
+        
+        if d == 0:
+            diff_img = Rfactor*img_left - Rfactor*img_right
+        else:
+            diff_img = Rfactor*img_left[:, d:] - Rfactor*img_right[:, :-d]
+            
+        I = cv2.integral(diff_img, sdepth=cv2.CV_32F)
+        
+        valid_H = H - K + 1
+        valid_W = W - d - K + 1
+        
+        if valid_W <= 0:
+            break
+            
+        min_c1 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        max_c1 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        min_c2 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        max_c2 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        min_c3 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        max_c3 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        min_c4 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        max_c4 = np.zeros((valid_H, valid_W), dtype=np.float32)
+        
+        for u in range(1, K + 1):
+            for v in range(1, K + 1):
+                
+                s1 = (I[u:valid_H+u, v:valid_W+v] - I[0:valid_H, v:valid_W+v] - 
+                      I[u:valid_H+u, 0:valid_W] + I[0:valid_H, 0:valid_W])
+                np.minimum(min_c1, s1, out=min_c1)
+                np.maximum(max_c1, s1, out=max_c1)
+                
+                s2 = (I[u:valid_H+u, K:valid_W+K] - I[0:valid_H, K:valid_W+K] - 
+                      I[u:valid_H+u, K-v:valid_W+K-v] + I[0:valid_H, K-v:valid_W+K-v])
+                np.minimum(min_c2, s2, out=min_c2)
+                np.maximum(max_c2, s2, out=max_c2)
+                
+                s3 = (I[K:valid_H+K, v:valid_W+v] - I[K-u:valid_H+K-u, v:valid_W+v] - 
+                      I[K:valid_H+K, 0:valid_W] + I[K-u:valid_H+K-u, 0:valid_W])
+                np.minimum(min_c3, s3, out=min_c3)
+                np.maximum(max_c3, s3, out=max_c3)
+                
+                s4 = (I[K:valid_H+K, K:valid_W+K] - I[K-u:valid_H+K-u, K:valid_W+K] - 
+                      I[K:valid_H+K, K-v:valid_W+K-v] + I[K-u:valid_H+K-u, K-v:valid_W+K-v])
+                np.minimum(min_c4, s4, out=min_c4)
+                np.maximum(max_c4, s4, out=max_c4)
+        
+        weyl_scores = np.maximum.reduce([
+            max_c1 - min_c1,
+            max_c2 - min_c2,
+            max_c3 - min_c3,
+            max_c4 - min_c4
+        ])
+        
+        target_min_costs = min_costs[padding:H-padding, padding+(d*R2factor):padding+(d*R2factor)+valid_W]
+        
+        mask = weyl_scores < target_min_costs
+        
+        target_min_costs[mask] = weyl_scores[mask]
+        min_costs[padding:H-padding, padding+(d*R2factor):padding+(d*R2factor)+valid_W] = target_min_costs
+        
+        target_best_disp = best_disparity[padding:H-padding, padding+(d*R2factor):padding+(d*R2factor)+valid_W]
+        target_best_disp[mask] = d
+        best_disparity[padding:H-padding, padding+(d*R2factor):padding+(d*R2factor)+valid_W] = target_best_disp
+
+    return best_disparity #[padding:-padding, padding:-padding] = bords noirs mais même taille d'image finale

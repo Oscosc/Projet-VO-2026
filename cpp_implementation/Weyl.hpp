@@ -16,16 +16,21 @@ struct Image {
     int Height;
     int Channels;
 
-    Image() {
-        Img = std::vector<uint8_t>();
+    Image() { Img = std::vector<uint8_t>(); }
+    Image(int width, int height) : Width(width), Height(height) {
+        Img = std::vector<uint8_t>(width * height);
     }
 };
 
 void LoadImage(Image& image, std::string path);
 
+void WriteImage(Image& image, std::string path);
+
 uint32_t WeylDiscrepancy(const Image& image);
 
 uint32_t WeylDiscrepancyAVX(const Image& image);
+
+int PatchMatching(const Image& image, const Image& pattern, Image& disparityMap);
 
 uint32_t hmin_epi32(__m256i v);
 

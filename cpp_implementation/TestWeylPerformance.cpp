@@ -11,19 +11,38 @@
 
 int main(int argc, char** argv) 
 {
-    if (argc < 2) {
-        std::cerr << "Usage : " << argv[0] << " <path_to_image>" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage : " << argv[0] << " <path_to_image> <path_to_patch> <optional:path_to_output>" << std::endl;
         return 1;
     }
 
-    int nbIterations = DEFAULT_NB_ITERATIONS;
-    if (argc == 3) {
-        nbIterations = std::stoi(argv[2]);
+    const char* outputPath = (argc == 4) ? argv[3] : "patch_matching_output.png";
+
+    Image image, patch, output;
+
+    LoadImage(image, argv[1]);
+    LoadImage(patch, argv[2]);
+
+    if (patch.Width > image.Width || patch.Height > image.Height) {
+        std::cerr << "[ERREUR] Le patch est plus grand que l'image globale !" << std::endl;
+        return 1;
     }
 
-    Image image;
-    LoadImage(image, argv[1]);
+    std::cout << "[INFO] Patch matching : Image " << image.Width << "x" << image.Height << " | "
+        << "Patch " << patch.Width << "x" << patch.Height << std::endl;
+    std::cout << "[INFO] Starting patch matching...\n";
+    auto start = std::chrono::high_resolution_clock::now();
+    PatchMatching(image, patch, output);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> execTime = end - start;
+    std::cout << "[PERFORMANCE] Execution time : " << execTime.count() << " ms\n";
 
+    WriteImage(output, outputPath);
+
+    return 0;
+}
+
+/*
     std::cout << "[INFO] Starting benchmark with " << nbIterations << " iterations..." << std::endl;
 
     auto startScalar = std::chrono::high_resolution_clock::now();
@@ -55,6 +74,4 @@ int main(int argc, char** argv)
     } else {
         std::cerr << "[ERROR] Results are differents. Somthing wrong happend in the algorithm.\n";
     }
-
-    return 0;
-}
+*/

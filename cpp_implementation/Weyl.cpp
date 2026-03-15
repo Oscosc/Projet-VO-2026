@@ -25,6 +25,21 @@ void LoadImage(Image &image, std::string path)
 }
 
 
+void WriteImage(Image& image, std::string path)
+{
+    int targetChannels = 1;
+    int stride_in_bytes = image.Width * targetChannels;
+    int success = stbi_write_png(path.c_str(), image.Width, image.Height, targetChannels, 
+                                 image.Img.data(), stride_in_bytes);
+    
+    if (success == 0) {
+        std::cerr << "[ERROR] Unable to write the image to " << path << std::endl;
+    } else {
+        std::cout << "[INFO] Image successfully saved to : " << path << std::endl;
+    }
+}
+
+
 uint32_t WeylDiscrepancy(const Image& image)
 {
     unsigned int width = image.Width, height = image.Height;
@@ -317,6 +332,73 @@ uint32_t WeylDiscrepancyAVX(const Image& image)
         globalMaxP3 - globalMinP3,
         static_cast<uint32_t>(globalMaxP4 - globalMinP4)
     });
+}
+
+
+int PatchMatching(const Image &image, const Image &patch, Image &disparityMap)
+{
+    int iw = image.Width;
+    int ih = image.Height;
+    int pw = patch.Width;
+    int ph = patch.Height;
+
+    Image diffImage(pw, ph);
+
+    uint32_t minDiscrepancy = UINT32_MAX;
+    uint32_t maxDiscrepancy = 0;
+    int bestMatchIndex = 0;
+
+    int dispWidth = iw - pw + 1;
+    int dispHeight = ih - ph + 1;
+    std::vector<uint32_t> rawDisparities(dispWidth * dispHeight);
+
+    disparityMap.Width = dispWidth;
+    disparityMap.Height = dispHeight;
+    disparityMap.Channels = 1;
+    disparityMap.Img.resize(dispWidth * dispHeight);
+
+    for(int y = 0; y <= ih - ph; y++) {
+        for(int x = 0; x <= iw - pw; x++) {
+
+            // Creating the difference image
+            for(int j = 0; j < ph; j++) {
+                for(int i = 0; i < pw; i++) {
+
+                    int imgIdx = (y + j) * iw + (x + i);
+                    int patchIdx = j * pw + i;
+
+                    int diff = std::abs(image.Img[imgIdx] - patch.Img[patchIdx]);
+                    diffImage.Img[patchIdx] = static_cast<uint8_t>(diff);
+                }
+            }
+
+            // Computing disparity
+            int dispIdx = y * dispWidth + x;
+            uint32_t currentDiscrepancy = WeylDiscrepancyAVX(diffImage);
+            rawDisparities[dispIdx] = currentDiscrepancy;
+
+            // Storing extrem values
+            if(currentDiscrepancy < minDiscrepancy) {
+                minDiscrepancy = currentDiscrepancy;
+                bestMatchIndex = dispIdx;
+            }
+            if(currentDiscrepancy > maxDiscrepancy) {
+                maxDiscrepancy = currentDiscrepancy;
+            }
+        }
+    }
+
+    // Min-max normalisation from uint32 to uint8
+    float range = static_cast<float>(maxDiscrepancy - minDiscrepancy);
+    if (range == 0.0f) range = 1.0f; 
+
+    for(int i = 0; i < dispWidth * dispHeight; i++)
+    {
+        float normalized = ((rawDisparities[i] - minDiscrepancy) / range) * 255.0f;
+        disparityMap.Img[i] = static_cast<uint8_t>(normalized + 0.5f);
+    }
+
+    return bestMatchIndex;
 }
 
 

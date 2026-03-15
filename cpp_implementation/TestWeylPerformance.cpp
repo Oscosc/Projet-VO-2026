@@ -23,39 +23,38 @@ int main(int argc, char** argv)
 
     Image image;
     LoadImage(image, argv[1]);
-    std::vector<uint8_t> imageVec;
-    VectorizeImage(image, imageVec);
 
     std::cout << "[INFO] Starting benchmark with " << nbIterations << " iterations..." << std::endl;
 
     auto startScalar = std::chrono::high_resolution_clock::now();
     uint32_t resScalar;
     for(int i = 0; i < nbIterations; i++)
-        resScalar = WeylDiscrepancy(imageVec, image.Width, image.Height);
+        resScalar = WeylDiscrepancy(image);
     auto endScalar = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> timeScalar = endScalar - startScalar;
 
     auto startAVX = std::chrono::high_resolution_clock::now();
     uint32_t resAVX;
     for(int i = 0; i < nbIterations; i++)
-        resAVX = WeylDiscrepancyAVX(imageVec, image.Width, image.Height);
+        resAVX = WeylDiscrepancyAVX(image);
     auto endAVX = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> timeAVX = endAVX - startAVX;
 
     std::cout << "----------------------------------------\n";
-    std::cout << "Results Scalar version : " << resScalar << " | Time : " << timeScalar.count() << " ms"
-        << " | Average : " << timeScalar.count() / nbIterations << " ms\n";
-    std::cout << "Results AVX2   version : " << resAVX << " | Time : " << timeAVX.count() << " ms"
-        << " | Average : " << timeAVX.count() / nbIterations << " ms\n";
+    std::cout << "Result Scalar version : " << resScalar << " | Time : " << timeScalar.count() << " ms"
+        << " | Average/image : " << timeScalar.count() / nbIterations << " ms"
+        << " | Average/pixel : " << timeScalar.count() / (nbIterations * image.Height * image.Width) << " ms\n";
+    std::cout << "Result AVX2   version : " << resAVX << " | Time : " << timeAVX.count() << " ms"
+        << " | Average/image : " << timeAVX.count() / nbIterations << " ms"
+        << " | Average/pixel : " << timeAVX.count() / (nbIterations * image.Height * image.Width) << " ms\n";
     std::cout << "----------------------------------------\n";
     
     if (resScalar == resAVX) {
-        std::cout << "[SUCESS] Both results give the same result !\n";
-        std::cout << "[BILAN] Acceleration AVX2 : x" << (timeScalar.count() / timeAVX.count()) << "\n";
+        std::cout << "[SUCESS] Both algorithms give the same result !\n";
+        std::cout << "[PERFORMANCE] Acceleration AVX2 : x" << (timeScalar.count() / timeAVX.count()) << "\n";
     } else {
-        std::cerr << "[ERREUR] Results are differents. Somthing wrong happend in the algorithm.\n";
+        std::cerr << "[ERROR] Results are differents. Somthing wrong happend in the algorithm.\n";
     }
 
-    stbi_image_free(image.Image);
     return 0;
 }

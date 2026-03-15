@@ -8,23 +8,24 @@
 #include <vector>
 #include <algorithm> // For std::min and std::max
 #include <string>
-
 #include <immintrin.h> // For AVX optimizations
 
 struct Image {
-    unsigned char *Image;
+    std::vector<uint8_t> Img;
     int Width;
     int Height;
     int Channels;
+
+    Image() {
+        Img = std::vector<uint8_t>();
+    }
 };
 
 void LoadImage(Image& image, std::string path);
 
-void VectorizeImage(const Image& image, std::vector<uint8_t>& vectorImage);
+uint32_t WeylDiscrepancy(const Image& image);
 
-uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int height);
-
-uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int height);
+uint32_t WeylDiscrepancyAVX(const Image& image);
 
 uint32_t hmin_epi32(__m256i v);
 

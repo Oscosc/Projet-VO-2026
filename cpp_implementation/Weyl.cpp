@@ -6,29 +6,29 @@
 
 void LoadImage(Image &image, std::string path)
 {
-    image.Image = stbi_load(path.c_str(), &image.Width, &image.Height, &image.Channels, 0);
+    unsigned char* stbiImage = stbi_load(path.c_str(), &image.Width, &image.Height, &image.Channels, 0);
     
-    if(image.Image == NULL) {
+    if(stbiImage == NULL) {
         std::cout << "[ERROR] Unable to load the image." << std::endl;
         exit(1);
     }
+
+    image.Img.resize(image.Width * image.Height);
+    for (int i = 0; i < image.Width * image.Height; ++i) {
+        image.Img[i] = stbiImage[i * image.Channels];
+    }
+
+    stbi_image_free(stbiImage);
 
     std::cout << "[INFO] Image loaded : " << image.Width << "x" << image.Height 
               << " (" << image.Channels << " channels)." << std::endl;
 }
 
 
-void VectorizeImage(const Image& image, std::vector<uint8_t>& vectorImage)
+uint32_t WeylDiscrepancy(const Image& image)
 {
-    vectorImage.resize(image.Width * image.Height);
-    for (int i = 0; i < image.Width * image.Height; ++i) {
-        vectorImage[i] = image.Image[i * image.Channels];
-    }
-}
+    unsigned int width = image.Width, height = image.Height;
 
-
-uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int height)
-{
     // Using a linearized image for memory alignment
     std::vector<uint32_t> integralImage(width * height);
 
@@ -37,10 +37,10 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
     uint32_t globalMinP3 = UINT32_MAX, globalMaxP3 = 0;
     int32_t  globalMinP4 = INT32_MAX,  globalMaxP4 = INT32_MIN; // P4 values are int32 and not uint32 because they can be negative
     
-    uint32_t rowSum = image[0];
+    uint32_t rowSum = image.Img[0];
     integralImage[0] = rowSum;
-    uint32_t localMinP1 = image[0];
-    uint32_t localMaxP1 = image[0];
+    uint32_t localMinP1 = image.Img[0];
+    uint32_t localMaxP1 = image.Img[0];
 
 
     // Pass 1 : P1 and P2 -------------------------------------------------------------------------
@@ -48,7 +48,7 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
     // First loop for topmost row
     for(int x = 1; x < width; x++)
     {
-        rowSum += image[x];
+        rowSum += image.Img[x];
         integralImage[x] = rowSum;
 
         localMinP1 = std::min(localMinP1, integralImage[x]);
@@ -72,7 +72,7 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
         for(int x = 0; x < width; x++)
         {
             unsigned int current = y * width + x;
-            rowSum += image[current];
+            rowSum += image.Img[current];
             integralImage[current] = integralImage[current - width] + rowSum;
 
             localMinP1 = std::min(localMinP1, integralImage[current]);
@@ -92,8 +92,8 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
 
     int32_t integralValueP4;
     
-    localMinP1 = image[0];
-    localMaxP1 = image[0];
+    localMinP1 = image.Img[0];
+    localMaxP1 = image.Img[0];
 
     // First loop for leftmost column
     for(int y = 0; y < height; y++)
@@ -156,8 +156,10 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
 }
 
 
-uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int height)
+uint32_t WeylDiscrepancyAVX(const Image& image)
 {
+    unsigned int width = image.Width, height = image.Height;
+
     // Defining the same variables as the normal version
     std::vector<uint32_t> integralImage(width * height);
 
@@ -166,17 +168,17 @@ uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int he
     uint32_t globalMinP3 = UINT32_MAX, globalMaxP3 = 0;
     int32_t  globalMinP4 = INT32_MAX,  globalMaxP4 = INT32_MIN;
     
-    uint32_t firstRowSum = image[0];
+    uint32_t firstRowSum = image.Img[0];
     integralImage[0] = firstRowSum;
-    uint32_t localMinP1 = image[0];
-    uint32_t localMaxP1 = image[0];
+    uint32_t localMinP1 = image.Img[0];
+    uint32_t localMaxP1 = image.Img[0];
 
     
     // Pass 1 : P1 and P2 -------------------------------------------------------------------------
     
     // First row is computed in linear way for lisibility (no performance loose)
     for(int x = 1; x < width; x++) {
-        firstRowSum += image[x];
+        firstRowSum += image.Img[x];
         integralImage[x] = firstRowSum;
 
         localMinP1 = std::min(localMinP1, integralImage[x]);
@@ -205,7 +207,7 @@ uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int he
             unsigned int current = y * width + x;
 
             // Loading 8 next image pixels
-            __m128i pixels_8bit = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(&image[current]));
+            __m128i pixels_8bit = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(&image.Img[current]));
             __m256i vec = _mm256_cvtepu8_epi32(pixels_8bit);
 
             // Next 4 blocks : calculating integral using paper method
@@ -241,7 +243,7 @@ uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int he
         for(; x < width; x++)
         {
             unsigned int current = y * width + x;
-            rowSum += image[current];
+            rowSum += image.Img[current];
             integralImage[current] = integralImage[current - width] + rowSum;
 
             localMinP1 = std::min(localMinP1, integralImage[current]);

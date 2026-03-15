@@ -1,52 +1,49 @@
-#include "Weyl.hpp"
-
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
 
-#include <iostream>
-#include <cstdint> // For uint32_t, used for images integrals
-#include <vector>
-#include <algorithm> // For std::min and std::max
+#include "Weyl.hpp"
 
 
 void LoadImage(Image &image, std::string path)
 {
     image.Image = stbi_load(path.c_str(), &image.Width, &image.Height, &image.Channels, 0);
+    
     if(image.Image == NULL) {
         std::cout << "[ERROR] Unable to load the image." << std::endl;
         exit(1);
     }
+
+    std::cout << "[INFO] Image loaded : " << image.Width << "x" << image.Height 
+              << " (" << image.Channels << " channels)." << std::endl;
 }
+
+
+void VectorizeImage(const Image& image, std::vector<uint8_t>& vectorImage)
+{
+    vectorImage.resize(image.Width * image.Height);
+    for (int i = 0; i < image.Width * image.Height; ++i) {
+        vectorImage[i] = image.Image[i * image.Channels];
+    }
+}
+
 
 uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int height)
 {
     // Using a linearized image for memory alignment
     std::vector<uint32_t> integralImage(width * height);
 
-    uint32_t globalMinP1 = UINT32_MAX;
-    uint32_t globalMaxP1 = 0;
+    uint32_t globalMinP1 = UINT32_MAX, globalMaxP1 = 0;
+    uint32_t globalMinP2 = UINT32_MAX, globalMaxP2 = 0;
+    uint32_t globalMinP3 = UINT32_MAX, globalMaxP3 = 0;
+    int32_t  globalMinP4 = INT32_MAX,  globalMaxP4 = INT32_MIN; // P4 values are int32 and not uint32 because they can be negative
+    
+    uint32_t rowSum = image[0];
+    integralImage[0] = rowSum;
     uint32_t localMinP1 = image[0];
     uint32_t localMaxP1 = image[0];
 
-    uint32_t globalMinP2 = UINT32_MAX;
-    uint32_t globalMaxP2 = 0;
-
-    uint32_t globalMinP3 = UINT32_MAX;
-    uint32_t globalMaxP3 = 0;
-
-    // P4 values are int32 and not uint32 because they can be negative
-    int32_t globalMinP4 = INT32_MAX;
-    int32_t globalMaxP4 = 0;
-
 
     // Pass 1 : P1 and P2 -------------------------------------------------------------------------
-
-    uint32_t rowSum = image[0];
-
-    // First (top-left) cell
-    integralImage[0] = image[0];
 
     // First loop for topmost row
     for(int x = 1; x < width; x++)
@@ -85,13 +82,14 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
         globalMinP1 = std::min(globalMinP1, localMinP1);
         globalMaxP1 = std::max(globalMaxP1, localMaxP1);
 
-        unsigned int c = (y + 1) * width - 1;
+        c = (y + 1) * width - 1;
         globalMinP2 = std::min(globalMinP2, std::min(integralImage[c], integralImage[c] - localMaxP1));
         globalMaxP2 = std::max(globalMaxP2, std::max(integralImage[c], integralImage[c] - localMinP1));
     }
 
 
     // Pass 2 : P3 and P4 -------------------------------------------------------------------------
+
     int32_t integralValueP4;
     
     localMinP1 = image[0];
@@ -114,7 +112,7 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
         globalMaxP4 = std::max(globalMaxP4, integralValueP4);
     }
 
-    unsigned int c = (height - 1) * width;
+    c = (height - 1) * width;
     globalMinP3 = std::min(globalMinP3, std::min(integralImage[c], integralImage[c] - localMaxP1));
     globalMaxP3 = std::max(globalMaxP3, std::max(integralImage[c], integralImage[c] - localMinP1));
 
@@ -141,7 +139,7 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
             globalMaxP4 = std::max(globalMaxP4, integralValueP4);
         }
 
-        unsigned int c = (height - 1) * width + x;
+        c = (height - 1) * width + x;
         globalMinP3 = std::min(globalMinP3, std::min(integralImage[c], integralImage[c] - localMaxP1));
         globalMaxP3 = std::max(globalMaxP3, std::max(integralImage[c], integralImage[c] - localMinP1));
     }
@@ -155,4 +153,197 @@ uint32_t WeylDiscrepancy(const std::vector<uint8_t>& image, int width, int heigh
         globalMaxP3 - globalMinP3,
         static_cast<uint32_t>(globalMaxP4 - globalMinP4)
     });
+}
+
+
+uint32_t WeylDiscrepancyAVX(const std::vector<uint8_t>& image, int width, int height)
+{
+    // Defining the same variables as the normal version
+    std::vector<uint32_t> integralImage(width * height);
+
+    uint32_t globalMinP1 = UINT32_MAX, globalMaxP1 = 0;
+    uint32_t globalMinP2 = UINT32_MAX, globalMaxP2 = 0;
+    uint32_t globalMinP3 = UINT32_MAX, globalMaxP3 = 0;
+    int32_t  globalMinP4 = INT32_MAX,  globalMaxP4 = INT32_MIN;
+    
+    uint32_t firstRowSum = image[0];
+    integralImage[0] = firstRowSum;
+    uint32_t localMinP1 = image[0];
+    uint32_t localMaxP1 = image[0];
+
+    
+    // Pass 1 : P1 and P2 -------------------------------------------------------------------------
+    
+    // First row is computed in linear way for lisibility (no performance loose)
+    for(int x = 1; x < width; x++) {
+        firstRowSum += image[x];
+        integralImage[x] = firstRowSum;
+
+        localMinP1 = std::min(localMinP1, integralImage[x]);
+        localMaxP1 = std::max(localMaxP1, integralImage[x]);
+    }
+    
+    globalMinP1 = std::min(globalMinP1, localMinP1);
+    globalMaxP1 = std::max(globalMaxP1, localMaxP1);
+
+    unsigned int c1 = width - 1;
+    globalMinP2 = std::min(globalMinP2, std::min(integralImage[c1], integralImage[c1] - localMaxP1));
+    globalMaxP2 = std::max(globalMaxP2, std::max(integralImage[c1], integralImage[c1] - localMinP1));
+
+    // Next rows using AVX2
+    for(int y = 1; y < height; y++)
+    {
+        // Declaring 256 bits int (8 x 32 bits ints) for localMin and localMax
+        __m256i localMinP1_vec = _mm256_set1_epi32(UINT32_MAX);
+        __m256i localMaxP1_vec = _mm256_set1_epi32(0);
+        uint32_t rowSum = 0;
+
+        // Reusing x id for multiple of 8 loop and 'finish' loop
+        int x = 0;
+        for(; x <= width - 8; x += 8)
+        {
+            unsigned int current = y * width + x;
+
+            // Loading 8 next image pixels
+            __m128i pixels_8bit = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(&image[current]));
+            __m256i vec = _mm256_cvtepu8_epi32(pixels_8bit);
+
+            // Next 4 blocks : calculating integral using paper method
+            vec = _mm256_add_epi32(vec, _mm256_slli_si256(vec, 4));
+            vec = _mm256_add_epi32(vec, _mm256_slli_si256(vec, 8));
+
+            __m256i shift_lane = _mm256_permute2x128_si256(vec, vec, 0x08);
+            __m256i broadcast_high = _mm256_shuffle_epi32(shift_lane, 0xFF);
+            vec = _mm256_add_epi32(vec, broadcast_high);
+
+            __m256i rowSum_vec = _mm256_set1_epi32(rowSum);
+            vec = _mm256_add_epi32(vec, rowSum_vec);
+
+            __m256i vec_above = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&integralImage[current - width]));
+            __m256i integral_vec = _mm256_add_epi32(vec, vec_above);
+
+            // Storing values in integral image
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(&integralImage[current]), integral_vec);
+
+            // Computing locals min/max (8 differents locals min/max)
+            localMinP1_vec = _mm256_min_epu32(localMinP1_vec, integral_vec);
+            localMaxP1_vec = _mm256_max_epu32(localMaxP1_vec, integral_vec);
+
+            __m128i top_half = _mm256_extracti128_si256(vec, 1);
+            rowSum = static_cast<uint32_t>(_mm_cvtsi128_si32(_mm_shuffle_epi32(top_half, 0xFF)));
+        }
+
+        // Reducing locals min/max
+        localMinP1 = hmin_epi32(localMinP1_vec);
+        localMaxP1 = hmax_epi32(localMaxP1_vec);
+
+        // Computing the rest of the image (not multiple of 8)
+        for(; x < width; x++)
+        {
+            unsigned int current = y * width + x;
+            rowSum += image[current];
+            integralImage[current] = integralImage[current - width] + rowSum;
+
+            localMinP1 = std::min(localMinP1, integralImage[current]);
+            localMaxP1 = std::max(localMaxP1, integralImage[current]);
+        }
+
+        globalMinP1 = std::min(globalMinP1, localMinP1);
+        globalMaxP1 = std::max(globalMaxP1, localMaxP1);
+
+        unsigned int c = (y + 1) * width - 1;
+        globalMinP2 = std::min(globalMinP2, std::min(integralImage[c], integralImage[c] - localMaxP1));
+        globalMaxP2 = std::max(globalMaxP2, std::max(integralImage[c], integralImage[c] - localMinP1));
+    }
+
+
+    // Pass 2 : P3 and P4 -------------------------------------------------------------------------
+    // Sequential mode because columns aren't aligned in memory
+    
+    int32_t integralValueP4;
+    localMinP1 = integralImage[0];
+    localMaxP1 = integralImage[0];
+
+    for(int y = 0; y < height; y++)
+    {
+        unsigned int current = y * width;
+        unsigned int maxWidth = (y + 1) * width - 1;
+        unsigned int maxHeight = (height - 1) * width;
+
+        localMinP1 = std::min(localMinP1, integralImage[current]);
+        localMaxP1 = std::max(localMaxP1, integralImage[current]);
+
+        integralValueP4 = integralImage[current] - integralImage[maxWidth] - integralImage[maxHeight];
+        globalMinP4 = std::min(globalMinP4, integralValueP4);
+        globalMaxP4 = std::max(globalMaxP4, integralValueP4);
+    }
+
+    unsigned int c2 = (height - 1) * width;
+    globalMinP3 = std::min(globalMinP3, std::min(integralImage[c2], integralImage[c2] - localMaxP1));
+    globalMaxP3 = std::max(globalMaxP3, std::max(integralImage[c2], integralImage[c2] - localMinP1));
+
+    for(int x = 1; x < width; x++)
+    {
+        localMinP1 = UINT32_MAX;
+        localMaxP1 = 0;
+        unsigned int maxHeight = (height - 1) * width + x;
+
+        for(int y = 0; y < height; y++)
+        {
+            unsigned int current = y * width + x;
+            unsigned int maxWidth = (y + 1) * width - 1;
+
+            localMinP1 = std::min(localMinP1, integralImage[current]);
+            localMaxP1 = std::max(localMaxP1, integralImage[current]);
+
+            integralValueP4 = integralImage[current] - integralImage[maxWidth] - integralImage[maxHeight];
+            globalMinP4 = std::min(globalMinP4, integralValueP4);
+            globalMaxP4 = std::max(globalMaxP4, integralValueP4);
+        }
+
+        unsigned int c3 = (height - 1) * width + x;
+        globalMinP3 = std::min(globalMinP3, std::min(integralImage[c3], integralImage[c3] - localMaxP1));
+        globalMaxP3 = std::max(globalMaxP3, std::max(integralImage[c3], integralImage[c3] - localMinP1));
+    }
+
+
+    // Return the maximum of the differences ------------------------------------------------------
+
+    return std::max({
+        globalMaxP1 - globalMinP1,
+        globalMaxP2 - globalMinP2,
+        globalMaxP3 - globalMinP3,
+        static_cast<uint32_t>(globalMaxP4 - globalMinP4)
+    });
+}
+
+
+uint32_t hmin_epi32(__m256i v) {
+
+    __m128i low128  = _mm256_castsi256_si128(v);
+    __m128i high128 = _mm256_extracti128_si256(v, 1);
+    __m128i min128  = _mm_min_epu32(low128, high128);
+
+    __m128i high64  = _mm_shuffle_epi32(min128, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i min64   = _mm_min_epu32(min128, high64);
+
+    __m128i high32  = _mm_shuffle_epi32(min64, _MM_SHUFFLE(2, 3, 0, 1));
+    __m128i min32   = _mm_min_epu32(min64, high32);
+
+    return static_cast<uint32_t>(_mm_cvtsi128_si32(min32));
+}
+
+
+uint32_t hmax_epi32(__m256i v) {
+    __m128i low128  = _mm256_castsi256_si128(v);
+    __m128i high128 = _mm256_extracti128_si256(v, 1);
+    __m128i max128  = _mm_max_epu32(low128, high128);
+
+    __m128i high64  = _mm_shuffle_epi32(max128, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i max64   = _mm_max_epu32(max128, high64);
+
+    __m128i high32  = _mm_shuffle_epi32(max64, _MM_SHUFFLE(2, 3, 0, 1));
+    __m128i max32   = _mm_max_epu32(max64, high32);
+
+    return static_cast<uint32_t>(_mm_cvtsi128_si32(max32));
 }

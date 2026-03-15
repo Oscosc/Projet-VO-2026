@@ -89,14 +89,6 @@ def WeylOptimized(image_in):
         int: valeur de discrépance de Weyl entre les deux images
     """
 
-import numpy as np
-
-def WeylOptimized(image_in):
-    """Calcule la valeur de discrépance de Weyl de manière optimisée selon
-    l'article : On a Fast Implementation of a 2D-Variant of Weyl’s Discrepancy Measure.
-    (Inclut l'omission de la constante pour la 4ème composante).
-    """
-
     rows, cols = image_in.shape
     integral_images = np.zeros((4, rows, cols))
     integral_images[0] = IntegralImageOptimized(image_in)

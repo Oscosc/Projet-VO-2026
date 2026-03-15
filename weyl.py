@@ -89,28 +89,39 @@ def WeylOptimized(image_in):
         int: valeur de discrépance de Weyl entre les deux images
     """
 
+import numpy as np
+
+def WeylOptimized(image_in):
+    """Calcule la valeur de discrépance de Weyl de manière optimisée selon
+    l'article : On a Fast Implementation of a 2D-Variant of Weyl’s Discrepancy Measure.
+    (Inclut l'omission de la constante pour la 4ème composante).
+    """
+
     rows, cols = image_in.shape
     integral_images = np.zeros((4, rows, cols))
     integral_images[0] = IntegralImageOptimized(image_in)
 
+    # Calcul principal (Équation 5 pour la 4ème composante)
     for x in range(rows):
         for y in range(cols):
             integral_images[1][x, y] = integral_images[0][x, cols-1] - integral_images[0][x, y]
             integral_images[2][x, y] = integral_images[0][rows-1, y] - integral_images[0][x, y]
-            integral_images[3][x, y] = integral_images[0][rows-1, cols-1] + integral_images[0][x, y] - integral_images[0][rows-1, y] - integral_images[0][x, cols-1]
+            # On vire ça de la boucle integral_images[0][rows-1, cols-1] ici :
+            integral_images[3][x, y] = integral_images[0][x, y] - integral_images[0][rows-1, y] - integral_images[0][x, cols-1]
 
-    # Correcting specific cases
-    integral_images[1][:, cols-1] = integral_images[0][:, cols-1]                                           # Π3 : if y = H
-    integral_images[2][rows-1, :] = integral_images[0][rows-1, :]                                           # Π3 : if y = H
-    integral_images[3][rows-1, :-1] = integral_images[0][rows-1, cols-1] - integral_images[0][rows-1, :-1]  # Π4 : if x = W, y != H
-    integral_images[3][:-1, cols-1] = integral_images[0][rows-1, cols-1] - integral_images[0][:-1, cols-1]  # Π4 : if x != W, y = H
-    integral_images[3][rows-1, cols-1] = integral_images[0][rows-1, cols-1]                                 # Π4 : if x = W, y = H
+    # Correcting specific cases (Équations 2, 3 et 4)
+    integral_images[1][:, cols-1] = integral_images[0][:, cols-1]                                           
+    integral_images[2][rows-1, :] = integral_images[0][rows-1, :]                                           
+    
+    # On fait la composante 4 ici avec ses cas speciaux.
+    integral_images[3][rows-1, :-1] = -integral_images[0][rows-1, :-1]  # Π4 : if x = W, y != H
+    integral_images[3][:-1, cols-1] = -integral_images[0][:-1, cols-1]  # Π4 : if x != W, y = H
+    integral_images[3][rows-1, cols-1] = 0                              # Π4 : if x = W, y = H
 
     minimums = np.minimum(0, np.min(integral_images, axis=(1, 2)))
     maximums = np.maximum(0, np.max(integral_images, axis=(1, 2)))
     
     return np.max(maximums - minimums)
-
 
 def PatternMatching(pattern, image_in, WeylsFunction=WeylOptimized,
                     display_execution_time=True,

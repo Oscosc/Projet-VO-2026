@@ -22,6 +22,7 @@ int main(int argc, char** argv)
     const char* outputPathRight = (argc == 7) ? argv[6] : "right_disparity_output.png";
 
     Weyl::Image::Image imageLeft, imageRight, outputLeft, outputRight;
+    std::vector<uint32_t> rawDispLeft, rawDispRight;
 
     Weyl::Image::LoadImage(imageLeft, argv[1]);
     Weyl::Image::LoadImage(imageRight, argv[2]);
@@ -34,11 +35,15 @@ int main(int argc, char** argv)
     std::cout << "[INFO] Starting Dense corresponding...\n";
 
     auto start = std::chrono::high_resolution_clock::now();
-    Weyl::DenseCorresponding(imageLeft, imageRight, outputLeft, outputRight, patchSize, maxDisparity);
+    Weyl::DenseCorresponding(imageLeft, imageRight, rawDispLeft, rawDispRight, patchSize, maxDisparity);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> execTime = end - start;
     std::cout << "[PERFORMANCE] Execution time : " << execTime.count() << " ms\n";
 
+    outputLeft.Width = imageLeft.Width; outputLeft.Height = imageLeft.Height; outputLeft.Channels = imageLeft.Channels;
+    outputRight.Width = imageRight.Width; outputRight.Height = imageRight.Height; outputRight.Channels = imageRight.Channels;
+    Weyl::Image::NormalizeImageData(rawDispLeft, outputLeft);
+    Weyl::Image::NormalizeImageData(rawDispRight, outputRight);
     Weyl::Image::WriteImage(outputLeft, outputPathLeft);
     Weyl::Image::WriteImage(outputRight, outputPathRight);
 

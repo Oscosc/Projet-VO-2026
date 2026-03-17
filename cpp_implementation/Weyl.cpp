@@ -40,6 +40,29 @@ void Weyl::Image::WriteImage(Image& image, std::string path)
 }
 
 
+void Weyl::Image::NormalizeImageData(const std::vector<uint32_t> &data, const uint32_t min, const uint32_t max, Image &image)
+{
+    size_t size = data.size();
+    image.Img.resize(size);
+
+    float range = static_cast<float>(max - min);
+    if (range == 0.0f) range = 1.0f; 
+
+    for(size_t i = 0; i < size; i++)
+    {
+        float normalized = ((data[i] - min) / range) * 255.0f;
+        image.Img[i] = static_cast<uint8_t>(normalized + 0.5f);
+    }
+}
+
+void Weyl::Image::NormalizeImageData(const std::vector<uint32_t> &data, Image &image)
+{
+    const uint32_t min = *std::min_element(data.begin(), data.end());
+    const uint32_t max = *std::max_element(data.begin(), data.end());
+
+    NormalizeImageData(data, min, max, image);
+}
+
 uint32_t Weyl::Core::WeylDiscrepancy(const Image::Image& image)
 {
     int width = image.Width, height = image.Height;
@@ -383,11 +406,6 @@ int Weyl::PatchMatching(const Image::Image &image, const Image::Image &patch, Im
     int dispHeight = ih - ph + 1;
     std::vector<uint32_t> rawDisparities(dispWidth * dispHeight);
 
-    disparityMap.Width = dispWidth;
-    disparityMap.Height = dispHeight;
-    disparityMap.Channels = 1;
-    disparityMap.Img.resize(dispWidth * dispHeight);
-
     for(int y = 0; y <= ih - ph; y++) {
         for(int x = 0; x <= iw - pw; x++) {
 
@@ -419,33 +437,27 @@ int Weyl::PatchMatching(const Image::Image &image, const Image::Image &patch, Im
         }
     }
 
-    // Min-max normalisation from uint32 to uint8
-    float range = static_cast<float>(maxDiscrepancy - minDiscrepancy);
-    if (range == 0.0f) range = 1.0f; 
+    disparityMap.Width = dispWidth;
+    disparityMap.Height = dispHeight;
+    disparityMap.Channels = 1;
+    disparityMap.Img.resize(dispWidth * dispHeight);
 
-    for(int i = 0; i < dispWidth * dispHeight; i++)
-    {
-        float normalized = ((rawDisparities[i] - minDiscrepancy) / range) * 255.0f;
-        disparityMap.Img[i] = static_cast<uint8_t>(normalized + 0.5f);
-    }
+    Image::NormalizeImageData(rawDisparities, minDiscrepancy, maxDiscrepancy, disparityMap);
 
     return bestMatchIndex;
 }
 
 
 void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight, 
-                         Image::Image& dispLeft, Image::Image& dispRight, 
+                         std::vector<uint32_t>& dispLeft, std::vector<uint32_t>& dispRight, 
                          const int patchSize, const int maxDisparity) 
 {
     int width = imgLeft.Width;
     int height = imgLeft.Height;
     int radius = patchSize / 2;
 
-    dispLeft.Width = width; dispLeft.Height = height; dispLeft.Channels = 1;
-    dispLeft.Img.assign(width * height, 0);
-
-    dispRight.Width = width; dispRight.Height = height; dispRight.Channels = 1;
-    dispRight.Img.assign(width * height, 0);
+    dispLeft.assign(width * height, 0);
+    dispRight.assign(width * height, 0);
 
     Image::Image diffBuffer(patchSize, patchSize);
 
@@ -477,7 +489,7 @@ void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& i
                     best_d = d;
                 }
             }
-            dispLeft.Img[y * width + x] = static_cast<uint8_t>((best_d * 255.0f) / maxDisparity);
+            dispLeft[y * width + x] = best_d;
         }
     }
 
@@ -509,7 +521,7 @@ void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& i
                     best_d = d;
                 }
             }
-            dispRight.Img[y * width + x] = static_cast<uint8_t>((best_d * 255.0f) / maxDisparity);
+            dispRight[y * width + x] = best_d * 255.0f;
         }
     }
 }

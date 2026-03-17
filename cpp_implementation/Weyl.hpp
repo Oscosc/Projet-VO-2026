@@ -30,6 +30,11 @@ namespace Weyl
         void LoadImage(Image& image, std::string path);
 
         void WriteImage(Image& image, std::string path);
+
+        void NormalizeImageData(const std::vector<uint32_t>& data,
+            const uint32_t min, const uint32_t max, Image& image);
+        
+        void NormalizeImageData(const std::vector<uint32_t>& data, Image& image);
     }
 
     namespace Core
@@ -45,6 +50,6 @@ namespace Weyl
 
     int PatchMatching(const Image::Image& image, const Image::Image& pattern, Image::Image& disparityMap);
 
-    void DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight,
-        Image::Image& dispLeft, Image::Image& dispRight, const int patchSize, const int maxDisparity);
+    void DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight, std::vector<uint32_t>& dispLeft,
+        std::vector<uint32_t>& dispRight, const int patchSize, const int maxDisparity);
 }

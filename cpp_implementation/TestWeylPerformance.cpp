@@ -18,22 +18,22 @@ int main(int argc, char** argv)
         nbIterations = std::stoi(argv[2]);
     }
 
-    Image image;
-    LoadImage(image, argv[1]);
+    Weyl::Image::Image image;
+    Weyl::Image::LoadImage(image, argv[1]);
 
     std::cout << "[INFO] Starting benchmark with " << nbIterations << " iterations..." << std::endl;
 
     auto startScalar = std::chrono::high_resolution_clock::now();
     uint32_t resScalar = 0;
     for(int i = 0; i < nbIterations; i++)
-        resScalar = WeylDiscrepancy(image);
+        resScalar = Weyl::Core::WeylDiscrepancy(image);
     auto endScalar = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> timeScalar = endScalar - startScalar;
 
     auto startAVX = std::chrono::high_resolution_clock::now();
     uint32_t resAVX = 0;
     for(int i = 0; i < nbIterations; i++)
-        resAVX = WeylDiscrepancyAVX(image);
+        resAVX = Weyl::Core::WeylDiscrepancyAVX(image);
     auto endAVX = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> timeAVX = endAVX - startAVX;
 

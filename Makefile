@@ -16,10 +16,10 @@ EXEC_PATCH = weyl_patch_matching
 EXEC_CORRESP = weyl_dense_corresponding
 
 
-all: benchmark patch_matching
+all: benchmark patch_matching dense_corresponding
 
 $(CORE_OBJ): $(CORE_SRC) $(SRC_DIR)/Weyl.hpp
-	mkdir $(SRC_DIR)/$(OBJ_DIR)
+	mkdir -p $(SRC_DIR)/$(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $(CORE_SRC) -o $(CORE_OBJ)
 
 

@@ -13,10 +13,10 @@ int main(int argc, char** argv)
 
     const char* outputPath = (argc == 4) ? argv[3] : "patch_matching_output.png";
 
-    Image image, patch, output;
+    Weyl::Image::Image image, patch, output;
 
-    LoadImage(image, argv[1]);
-    LoadImage(patch, argv[2]);
+    Weyl::Image::LoadImage(image, argv[1]);
+    Weyl::Image::LoadImage(patch, argv[2]);
 
     if (patch.Width > image.Width || patch.Height > image.Height) {
         std::cerr << "[ERREUR] Le patch est plus grand que l'image globale !" << std::endl;
@@ -27,13 +27,13 @@ int main(int argc, char** argv)
         << "Patch " << patch.Width << "x" << patch.Height << std::endl;
     std::cout << "[INFO] Starting patch matching...\n";
     auto start = std::chrono::high_resolution_clock::now();
-    PatchMatching(image, patch, output);
+    Weyl::PatchMatching(image, patch, output);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> execTime = end - start;
     std::cout << "[PERFORMANCE] Execution time : " << execTime.count() << " ms\n";
 
-    WriteImage(output, outputPath);
-    WriteImage(image, "gray_nuance_image.png");
+    Weyl::Image::WriteImage(output, outputPath);
+    Weyl::Image::WriteImage(image, "gray_nuance_image.png");
 
     return 0;
 }

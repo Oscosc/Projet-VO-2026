@@ -11,31 +11,40 @@
 #include <string>
 #include <immintrin.h> // For AVX optimizations
 
-struct Image {
-    std::vector<uint8_t> Img;
-    int Width;
-    int Height;
-    int Channels;
+namespace Weyl
+{
+    namespace Image
+    {
+        struct Image {
+            std::vector<uint8_t> Img;
+            int Width;
+            int Height;
+            int Channels;
 
-    Image() { Img = std::vector<uint8_t>(); }
-    Image(int width, int height) : Width(width), Height(height) {
-        Img = std::vector<uint8_t>(width * height);
+            Image() { Img = std::vector<uint8_t>(); }
+            Image(int width, int height) : Width(width), Height(height) {
+                Img = std::vector<uint8_t>(width * height);
+            }
+        };
+
+        void LoadImage(Image& image, std::string path);
+
+        void WriteImage(Image& image, std::string path);
     }
-};
 
-void LoadImage(Image& image, std::string path);
+    namespace Core
+    {
+        uint32_t WeylDiscrepancy(const Image::Image& image);
 
-void WriteImage(Image& image, std::string path);
+        uint32_t WeylDiscrepancyAVX(const Image::Image& image);
 
-uint32_t WeylDiscrepancy(const Image& image);
+        uint32_t hmin_epi32(__m256i v);
 
-uint32_t WeylDiscrepancyAVX(const Image& image);
+        uint32_t hmax_epi32(__m256i v);
+    }
 
-int PatchMatching(const Image& image, const Image& pattern, Image& disparityMap);
+    int PatchMatching(const Image::Image& image, const Image::Image& pattern, Image::Image& disparityMap);
 
-void DenseCorresponding(const Image& imgLeft, const Image& imgRight, Image& dispLeft, Image& dispRight,
-    const int patchSize, const int maxDisparity);
-
-uint32_t hmin_epi32(__m256i v);
-
-uint32_t hmax_epi32(__m256i v);
+    void DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight,
+        Image::Image& dispLeft, Image::Image& dispRight, const int patchSize, const int maxDisparity);
+}

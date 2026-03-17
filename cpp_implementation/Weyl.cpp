@@ -4,7 +4,7 @@
 #include "Weyl.hpp"
 
 
-void LoadImage(Image &image, std::string path)
+void Weyl::Image::LoadImage(Image &image, std::string path)
 {
     unsigned char* stbiImage = stbi_load(path.c_str(), &image.Width, &image.Height, &image.Channels, 0);
     
@@ -25,7 +25,7 @@ void LoadImage(Image &image, std::string path)
 }
 
 
-void WriteImage(Image& image, std::string path)
+void Weyl::Image::WriteImage(Image& image, std::string path)
 {
     int targetChannels = 1;
     int stride_in_bytes = image.Width * targetChannels;
@@ -40,7 +40,7 @@ void WriteImage(Image& image, std::string path)
 }
 
 
-uint32_t WeylDiscrepancy(const Image& image)
+uint32_t Weyl::Core::WeylDiscrepancy(const Image::Image& image)
 {
     int width = image.Width, height = image.Height;
 
@@ -171,7 +171,7 @@ uint32_t WeylDiscrepancy(const Image& image)
 }
 
 
-uint32_t WeylDiscrepancyAVX(const Image& image)
+uint32_t Weyl::Core::WeylDiscrepancyAVX(const Image::Image& image)
 {
     int width = image.Width, height = image.Height;
 
@@ -335,14 +335,45 @@ uint32_t WeylDiscrepancyAVX(const Image& image)
 }
 
 
-int PatchMatching(const Image &image, const Image &patch, Image &disparityMap)
+uint32_t Weyl::Core::hmin_epi32(__m256i v) {
+
+    __m128i low128  = _mm256_castsi256_si128(v);
+    __m128i high128 = _mm256_extracti128_si256(v, 1);
+    __m128i min128  = _mm_min_epu32(low128, high128);
+
+    __m128i high64  = _mm_shuffle_epi32(min128, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i min64   = _mm_min_epu32(min128, high64);
+
+    __m128i high32  = _mm_shuffle_epi32(min64, _MM_SHUFFLE(2, 3, 0, 1));
+    __m128i min32   = _mm_min_epu32(min64, high32);
+
+    return static_cast<uint32_t>(_mm_cvtsi128_si32(min32));
+}
+
+
+uint32_t Weyl::Core::hmax_epi32(__m256i v) {
+    __m128i low128  = _mm256_castsi256_si128(v);
+    __m128i high128 = _mm256_extracti128_si256(v, 1);
+    __m128i max128  = _mm_max_epu32(low128, high128);
+
+    __m128i high64  = _mm_shuffle_epi32(max128, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i max64   = _mm_max_epu32(max128, high64);
+
+    __m128i high32  = _mm_shuffle_epi32(max64, _MM_SHUFFLE(2, 3, 0, 1));
+    __m128i max32   = _mm_max_epu32(max64, high32);
+
+    return static_cast<uint32_t>(_mm_cvtsi128_si32(max32));
+}
+
+
+int Weyl::PatchMatching(const Image::Image &image, const Image::Image &patch, Image::Image &disparityMap)
 {
     int iw = image.Width;
     int ih = image.Height;
     int pw = patch.Width;
     int ph = patch.Height;
 
-    Image diffImage(pw, ph);
+    Image::Image diffImage(pw, ph);
 
     uint32_t minDiscrepancy = UINT32_MAX;
     uint32_t maxDiscrepancy = 0;
@@ -374,7 +405,7 @@ int PatchMatching(const Image &image, const Image &patch, Image &disparityMap)
 
             // Computing disparity
             int dispIdx = y * dispWidth + x;
-            uint32_t currentDiscrepancy = WeylDiscrepancyAVX(diffImage);
+            uint32_t currentDiscrepancy = Core::WeylDiscrepancyAVX(diffImage);
             rawDisparities[dispIdx] = currentDiscrepancy;
 
             // Storing extrem values
@@ -402,8 +433,8 @@ int PatchMatching(const Image &image, const Image &patch, Image &disparityMap)
 }
 
 
-void DenseCorresponding(const Image& imgLeft, const Image& imgRight, 
-                         Image& dispLeft, Image& dispRight, 
+void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight, 
+                         Image::Image& dispLeft, Image::Image& dispRight, 
                          const int patchSize, const int maxDisparity) 
 {
     int width = imgLeft.Width;
@@ -416,7 +447,7 @@ void DenseCorresponding(const Image& imgLeft, const Image& imgRight,
     dispRight.Width = width; dispRight.Height = height; dispRight.Channels = 1;
     dispRight.Img.assign(width * height, 0);
 
-    Image diffBuffer(patchSize, patchSize);
+    Image::Image diffBuffer(patchSize, patchSize);
 
     for (int y = radius; y < height - radius; ++y) 
     {
@@ -439,7 +470,7 @@ void DenseCorresponding(const Image& imgLeft, const Image& imgRight,
                     }
                 }
 
-                uint32_t currentWeyl = WeylDiscrepancyAVX(diffBuffer);
+                uint32_t currentWeyl = Core::WeylDiscrepancyAVX(diffBuffer);
 
                 if (currentWeyl < minWeyl) {
                     minWeyl = currentWeyl;
@@ -471,7 +502,7 @@ void DenseCorresponding(const Image& imgLeft, const Image& imgRight,
                     }
                 }
 
-                uint32_t currentWeyl = WeylDiscrepancyAVX(diffBuffer);
+                uint32_t currentWeyl = Core::WeylDiscrepancyAVX(diffBuffer);
 
                 if (currentWeyl < minWeyl) {
                     minWeyl = currentWeyl;
@@ -481,35 +512,4 @@ void DenseCorresponding(const Image& imgLeft, const Image& imgRight,
             dispRight.Img[y * width + x] = static_cast<uint8_t>((best_d * 255.0f) / maxDisparity);
         }
     }
-}
-
-
-uint32_t hmin_epi32(__m256i v) {
-
-    __m128i low128  = _mm256_castsi256_si128(v);
-    __m128i high128 = _mm256_extracti128_si256(v, 1);
-    __m128i min128  = _mm_min_epu32(low128, high128);
-
-    __m128i high64  = _mm_shuffle_epi32(min128, _MM_SHUFFLE(1, 0, 3, 2));
-    __m128i min64   = _mm_min_epu32(min128, high64);
-
-    __m128i high32  = _mm_shuffle_epi32(min64, _MM_SHUFFLE(2, 3, 0, 1));
-    __m128i min32   = _mm_min_epu32(min64, high32);
-
-    return static_cast<uint32_t>(_mm_cvtsi128_si32(min32));
-}
-
-
-uint32_t hmax_epi32(__m256i v) {
-    __m128i low128  = _mm256_castsi256_si128(v);
-    __m128i high128 = _mm256_extracti128_si256(v, 1);
-    __m128i max128  = _mm_max_epu32(low128, high128);
-
-    __m128i high64  = _mm_shuffle_epi32(max128, _MM_SHUFFLE(1, 0, 3, 2));
-    __m128i max64   = _mm_max_epu32(max128, high64);
-
-    __m128i high32  = _mm_shuffle_epi32(max64, _MM_SHUFFLE(2, 3, 0, 1));
-    __m128i max32   = _mm_max_epu32(max64, high32);
-
-    return static_cast<uint32_t>(_mm_cvtsi128_si32(max32));
 }

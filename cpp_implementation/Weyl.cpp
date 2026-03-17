@@ -42,7 +42,7 @@ void WriteImage(Image& image, std::string path)
 
 uint32_t WeylDiscrepancy(const Image& image)
 {
-    unsigned int width = image.Width, height = image.Height;
+    int width = image.Width, height = image.Height;
 
     // Using a linearized image for memory alignment
     std::vector<uint32_t> integralImage(width * height);
@@ -173,7 +173,7 @@ uint32_t WeylDiscrepancy(const Image& image)
 
 uint32_t WeylDiscrepancyAVX(const Image& image)
 {
-    unsigned int width = image.Width, height = image.Height;
+    int width = image.Width, height = image.Height;
 
     // Defining the same variables as the normal version
     std::vector<uint32_t> integralImage(width * height);

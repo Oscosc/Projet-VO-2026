@@ -1,6 +1,3 @@
-// compil : g++ TestWeylPerformance.cpp Weyl.cpp -O3 -mavx2 -o weyl_benchmark
-// usage  : ./weyl_benchmark ../datasets/tests_images/tree.png <optional:nb_iterations>
-
 #include "Weyl.hpp"
 #include <iostream>
 #include <vector>
@@ -11,49 +8,30 @@
 
 int main(int argc, char** argv) 
 {
-    if (argc < 3) {
-        std::cerr << "Usage : " << argv[0] << " <path_to_image> <path_to_patch> <optional:path_to_output>" << std::endl;
+    if(argc < 2 || argc > 3) {
+        std::cerr << "Usage : " << argv[0] << " <path_to_image> <optional:nb_iterations>" << std::endl;
         return 1;
     }
 
-    const char* outputPath = (argc == 4) ? argv[3] : "patch_matching_output.png";
+    int nbIterations = DEFAULT_NB_ITERATIONS;
+    if(argc == 3) {
+        nbIterations = std::stoi(argv[2]);
+    }
 
-    Image image, patch, output;
-
+    Image image;
     LoadImage(image, argv[1]);
-    LoadImage(patch, argv[2]);
 
-    if (patch.Width > image.Width || patch.Height > image.Height) {
-        std::cerr << "[ERREUR] Le patch est plus grand que l'image globale !" << std::endl;
-        return 1;
-    }
-
-    std::cout << "[INFO] Patch matching : Image " << image.Width << "x" << image.Height << " | "
-        << "Patch " << patch.Width << "x" << patch.Height << std::endl;
-    std::cout << "[INFO] Starting patch matching...\n";
-    auto start = std::chrono::high_resolution_clock::now();
-    PatchMatching(image, patch, output);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> execTime = end - start;
-    std::cout << "[PERFORMANCE] Execution time : " << execTime.count() << " ms\n";
-
-    WriteImage(output, outputPath);
-
-    return 0;
-}
-
-/*
     std::cout << "[INFO] Starting benchmark with " << nbIterations << " iterations..." << std::endl;
 
     auto startScalar = std::chrono::high_resolution_clock::now();
-    uint32_t resScalar;
+    uint32_t resScalar = 0;
     for(int i = 0; i < nbIterations; i++)
         resScalar = WeylDiscrepancy(image);
     auto endScalar = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> timeScalar = endScalar - startScalar;
 
     auto startAVX = std::chrono::high_resolution_clock::now();
-    uint32_t resAVX;
+    uint32_t resAVX = 0;
     for(int i = 0; i < nbIterations; i++)
         resAVX = WeylDiscrepancyAVX(image);
     auto endAVX = std::chrono::high_resolution_clock::now();
@@ -74,4 +52,6 @@ int main(int argc, char** argv)
     } else {
         std::cerr << "[ERROR] Results are differents. Somthing wrong happend in the algorithm.\n";
     }
-*/
+
+    return 0;
+}

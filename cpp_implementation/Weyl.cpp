@@ -402,6 +402,88 @@ int PatchMatching(const Image &image, const Image &patch, Image &disparityMap)
 }
 
 
+void DenseCorresponding(const Image& imgLeft, const Image& imgRight, 
+                         Image& dispLeft, Image& dispRight, 
+                         const int patchSize, const int maxDisparity) 
+{
+    int width = imgLeft.Width;
+    int height = imgLeft.Height;
+    int radius = patchSize / 2;
+
+    dispLeft.Width = width; dispLeft.Height = height; dispLeft.Channels = 1;
+    dispLeft.Img.assign(width * height, 0);
+
+    dispRight.Width = width; dispRight.Height = height; dispRight.Channels = 1;
+    dispRight.Img.assign(width * height, 0);
+
+    Image diffBuffer(patchSize, patchSize);
+
+    for (int y = radius; y < height - radius; ++y) 
+    {
+        for (int x = radius; x < width - radius; ++x) 
+        {
+            uint32_t minWeyl = UINT32_MAX;
+            int best_d = 0;
+
+            for (int d = 0; d <= maxDisparity; ++d) 
+            {
+                if (x - d - radius < 0) continue;
+
+                for (int j = -radius; j <= radius; ++j) {
+                    for (int i = -radius; i <= radius; ++i) {
+                        int idxL = (y + j) * width + (x + i);
+                        int idxR = (y + j) * width + (x - d + i); 
+                        
+                        int diff = std::abs(imgLeft.Img[idxL] - imgRight.Img[idxR]);
+                        diffBuffer.Img[(j + radius) * patchSize + (i + radius)] = static_cast<uint8_t>(diff);
+                    }
+                }
+
+                uint32_t currentWeyl = WeylDiscrepancyAVX(diffBuffer);
+
+                if (currentWeyl < minWeyl) {
+                    minWeyl = currentWeyl;
+                    best_d = d;
+                }
+            }
+            dispLeft.Img[y * width + x] = static_cast<uint8_t>((best_d * 255.0f) / maxDisparity);
+        }
+    }
+
+    for (int y = radius; y < height - radius; ++y) 
+    {
+        for (int x = radius; x < width - radius; ++x) 
+        {
+            uint32_t minWeyl = UINT32_MAX;
+            int best_d = 0;
+
+            for (int d = 0; d <= maxDisparity; ++d) 
+            {
+                if (x + d + radius >= width) continue;
+
+                for (int j = -radius; j <= radius; ++j) {
+                    for (int i = -radius; i <= radius; ++i) {
+                        int idxR = (y + j) * width + (x + i);
+                        int idxL = (y + j) * width + (x + d + i); 
+                        
+                        int diff = std::abs(imgRight.Img[idxR] - imgLeft.Img[idxL]);
+                        diffBuffer.Img[(j + radius) * patchSize + (i + radius)] = static_cast<uint8_t>(diff);
+                    }
+                }
+
+                uint32_t currentWeyl = WeylDiscrepancyAVX(diffBuffer);
+
+                if (currentWeyl < minWeyl) {
+                    minWeyl = currentWeyl;
+                    best_d = d;
+                }
+            }
+            dispRight.Img[y * width + x] = static_cast<uint8_t>((best_d * 255.0f) / maxDisparity);
+        }
+    }
+}
+
+
 uint32_t hmin_epi32(__m256i v) {
 
     __m128i low128  = _mm256_castsi256_si128(v);

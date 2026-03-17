@@ -9,9 +9,11 @@ CORE_OBJ = $(SRC_DIR)/$(OBJ_DIR)/Weyl.o
 
 MAIN_BENCHMARK = $(SRC_DIR)/TestWeylPerformance.cpp
 MAIN_PATCH = $(SRC_DIR)/TestPatchMatching.cpp
+MAIN_CORRESP = $(SRC_DIR)/TestDenseCorresponding.cpp
 
 EXEC_BENCHMARK = weyl_benchmark
 EXEC_PATCH = weyl_patch_matching
+EXEC_CORRESP = weyl_dense_corresponding
 
 
 all: benchmark patch_matching
@@ -28,6 +30,10 @@ benchmark: $(CORE_OBJ) $(MAIN_BENCHMARK)
 patch_matching: $(CORE_OBJ) $(MAIN_PATCH)
 	$(CXX) $(CXXFLAGS) $(MAIN_PATCH) $(CORE_OBJ) -o $(EXEC_PATCH)
 	@echo "[SUCCÈS] Exécutable du patch matching généré : ./"$(EXEC_PATCH)
+
+dense_corresponding: $(CORE_OBJ) $(MAIN_CORRESP)
+	$(CXX) $(CXXFLAGS) $(MAIN_CORRESP) $(CORE_OBJ) -o $(EXEC_CORRESP)
+	@echo "[SUCCÈS] Exécutable du dense corresponding généré : ./"$(EXEC_CORRESP)
 
 clean:
 	rm -f $(EXEC_BENCHMARK) $(EXEC_PATCH)

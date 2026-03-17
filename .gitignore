@@ -1,2 +1,10 @@
 # Python folders
 __pycache__
+
+# objects files
+cpp_implementation/obj
+
+# executables
+weyl_dense_corresponding
+weyl_patch_matching
+weyl_benchmark

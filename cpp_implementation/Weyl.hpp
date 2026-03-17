@@ -3,6 +3,7 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include <cmath>
 #include <iostream>
 #include <cstdint> // For uint32_t, used for images integrals
 #include <vector>
@@ -31,6 +32,9 @@ uint32_t WeylDiscrepancy(const Image& image);
 uint32_t WeylDiscrepancyAVX(const Image& image);
 
 int PatchMatching(const Image& image, const Image& pattern, Image& disparityMap);
+
+void DenseCorresponding(const Image& imgLeft, const Image& imgRight, Image& dispLeft, Image& dispRight,
+    const int patchSize, const int maxDisparity);
 
 uint32_t hmin_epi32(__m256i v);
 

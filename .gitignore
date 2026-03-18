@@ -9,6 +9,7 @@ weyl_dense_corresponding
 weyl_patch_matching
 weyl_benchmark
 weyl_metrics
+weyl_video_tracking
 
 # results (can be reproduced with script)
 results

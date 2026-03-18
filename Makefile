@@ -11,14 +11,16 @@ MAIN_BENCHMARK = $(SRC_DIR)/TestWeylPerformance.cpp
 MAIN_PATCH = $(SRC_DIR)/TestPatchMatching.cpp
 MAIN_CORRESP = $(SRC_DIR)/TestDenseCorresponding.cpp
 MAIN_METRICS = $(SRC_DIR)/TestMetrics.cpp
+MAIN_TRACKING = $(SRC_DIR)/TestVideoTracking.cpp
 
 EXEC_BENCHMARK = weyl_benchmark
 EXEC_PATCH = weyl_patch_matching
 EXEC_CORRESP = weyl_dense_corresponding
 EXEC_METRICS = weyl_metrics
+EXEC_TRACKING = weyl_video_tracking
 
 
-all: benchmark patch_matching dense_corresponding metrics_evaluation
+all: benchmark patch_matching dense_corresponding metrics_evaluation video_tracking
 
 $(CORE_OBJ): $(CORE_SRC) $(SRC_DIR)/Weyl.hpp
 	mkdir -p $(SRC_DIR)/$(OBJ_DIR)
@@ -41,7 +43,11 @@ metrics_evaluation: $(CORE_OBJ) $(MAIN_METRICS)
 	$(CXX) $(CXXFLAGS) $(MAIN_METRICS) $(CORE_OBJ) -o $(EXEC_METRICS)
 	@echo "[SUCCÈS] Exécutable de l'évaluation de metriques généré : ./"$(EXEC_METRICS)
 
+video_tracking: $(CORE_OBJ) $(MAIN_TRACKING)
+	$(CXX) $(CXXFLAGS) $(MAIN_TRACKING) $(CORE_OBJ) -o $(EXEC_TRACKING)
+	@echo "[SUCCÈS] Exécutable du video tracking généré : ./"$(EXEC_TRACKING)
+
 clean:
-	rm -f $(EXEC_BENCHMARK) $(EXEC_PATCH)
+	rm -f $(EXEC_BENCHMARK) $(EXEC_PATCH) $(EXEC_CORRESP) $(EXEC_METRICS) $(EXEC_TRACKING)
 	rm -rf $(SRC_DIR)/$(OBJ_DIR)
 	@echo "[INFO] Nettoyage terminé."

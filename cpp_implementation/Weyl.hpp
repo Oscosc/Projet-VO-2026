@@ -50,6 +50,13 @@ namespace Weyl
         uint32_t hmax_epi32(__m256i v);
     }
 
+    namespace Metrics
+    {
+        double MeanSquaredError(const Image::Image& reference, const Image::Image& estimation);
+
+        double BadPixelRate(const Image::Image& reference, const Image::Image& estimation, const int tolerance = 1);
+    }
+
     int PatchMatching(const Image::Image& image, const Image::Image& pattern, Image::Image& disparityMap);
 
     void DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight, Image::Image& dispLeft,

@@ -29,23 +29,23 @@ $(CORE_OBJ): $(CORE_SRC) $(SRC_DIR)/Weyl.hpp
 
 benchmark: $(CORE_OBJ) $(MAIN_BENCHMARK)
 	$(CXX) $(CXXFLAGS) $(MAIN_BENCHMARK) $(CORE_OBJ) -o $(EXEC_BENCHMARK)
-	@echo "[SUCCÈS] Exécutable du benchmark généré : ./"$(EXEC_BENCHMARK)
+	@echo "[SUCCESS] Exécutable du benchmark généré : ./"$(EXEC_BENCHMARK)
 
 patch_matching: $(CORE_OBJ) $(MAIN_PATCH)
 	$(CXX) $(CXXFLAGS) $(MAIN_PATCH) $(CORE_OBJ) -o $(EXEC_PATCH)
-	@echo "[SUCCÈS] Exécutable du patch matching généré : ./"$(EXEC_PATCH)
+	@echo "[SUCCESS] Exécutable du patch matching généré : ./"$(EXEC_PATCH)
 
 dense_corresponding: $(CORE_OBJ) $(MAIN_CORRESP)
 	$(CXX) $(CXXFLAGS) $(MAIN_CORRESP) $(CORE_OBJ) -o $(EXEC_CORRESP)
-	@echo "[SUCCÈS] Exécutable du dense corresponding généré : ./"$(EXEC_CORRESP)
+	@echo "[SUCCESS] Exécutable du dense corresponding généré : ./"$(EXEC_CORRESP)
 
 metrics_evaluation: $(CORE_OBJ) $(MAIN_METRICS)
 	$(CXX) $(CXXFLAGS) $(MAIN_METRICS) $(CORE_OBJ) -o $(EXEC_METRICS)
-	@echo "[SUCCÈS] Exécutable de l'évaluation de metriques généré : ./"$(EXEC_METRICS)
+	@echo "[SUCCESS] Exécutable de l'évaluation de metriques généré : ./"$(EXEC_METRICS)
 
 video_tracking: $(CORE_OBJ) $(MAIN_TRACKING)
 	$(CXX) $(CXXFLAGS) $(MAIN_TRACKING) $(CORE_OBJ) -o $(EXEC_TRACKING)
-	@echo "[SUCCÈS] Exécutable du video tracking généré : ./"$(EXEC_TRACKING)
+	@echo "[SUCCESS] Exécutable du video tracking généré : ./"$(EXEC_TRACKING)
 
 clean:
 	rm -f $(EXEC_BENCHMARK) $(EXEC_PATCH) $(EXEC_CORRESP) $(EXEC_METRICS) $(EXEC_TRACKING)

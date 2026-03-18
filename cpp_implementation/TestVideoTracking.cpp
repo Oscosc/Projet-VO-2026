@@ -17,9 +17,9 @@ struct BBox {
 
 int main(int argc, char** argv) 
 {
-    if (argc < 4 || argc > 5) {
+    if (argc < 4 || argc > 6) {
         std::cerr << "Usage : " << argv[0] << " <root_tracking_path> <video_name>"
-            << " <frames_count> <optional:root_output_path>\n";
+            << " <frames_count> <optional:frames_interval> <optional:root_output_path>\n";
         return 1;
     }
 
@@ -27,7 +27,8 @@ int main(int argc, char** argv)
     std::string rootTrackingPath = argv[1];
     std::string videoName = argv[2];
     int framesCount = std::stoi(argv[3]);
-    std::string outputPath = (argc == 5) ? argv[4] : ".";
+    int framesInterval = (argc >= 5) ? std::stoi(argv[4]) : 1;
+    std::string outputPath = (argc == 6) ? argv[5] : ".";
 
     // Prepare output folder for writing
     fs::path outDir = fs::path(outputPath) / videoName / "frames";
@@ -42,13 +43,18 @@ int main(int argc, char** argv)
     std::vector<BBox> boundingBoxes(framesCount);
     Weyl::Image::Image disparityBuffer;
 
+    // Chrono
+    std::chrono::_V2::system_clock::time_point start, end;
+
     std::cout << "[INFO] Tracking informations :" << std::endl;;
-    std::cout << "  - Frames count: " << framesCount << std::endl;
-    std::cout << "  - Patch size:   " << patch.Width << "x" << patch.Height << std::endl;
+    std::cout << "  - Frames count:     " << framesCount << std::endl;
+    std::cout << "  - Frames spacing:   " << framesInterval << std::endl;
+    std::cout << "  - Patch size:       " << patch.Width << "x" << patch.Height << std::endl;
     std::cout << "[INFO] Starting video object tracking..." << std::endl;
 
     // Lopping over each image
-    for(int i = 0; i < framesCount; i++) {
+    for(int i = 0; i < framesCount; i += framesInterval) {
+        std::cout.setstate(std::ios_base::failbit); // Display switched-on
 
         // Creating frame paths
         std::string frameFileName = videoName + "_frame__" + std::to_string(i) + ".jpg";
@@ -56,13 +62,16 @@ int main(int argc, char** argv)
 
         fs::path framePath = fs::path(rootTrackingPath) / videoName / "frames" / frameFileName;
         fs::path frameOutPath = outDir / dispFileName;
-        
+
         // Retrieving frame image
         Weyl::Image::Image frame;
         Weyl::Image::LoadImage(frame, framePath.string());
 
         // Calling patch matching
+        start = std::chrono::high_resolution_clock::now();
         int bestIndex = Weyl::PatchMatching(frame, patch, disparityBuffer);
+        end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> execTime = end - start;
 
         // Retrievin bounding box position
         int dispWidth = frame.Width - patch.Width + 1; 
@@ -77,8 +86,10 @@ int main(int argc, char** argv)
         };
 
         Weyl::Image::WriteImage(disparityBuffer, frameOutPath.string());
-        
-        std::cout << "  - Frame " << i+1 << "/" << framesCount << " done." << std::endl;
+
+        std::cout.clear(); // Display switched-on
+        std::cout << "  - Frame " << i+1 << "/" << framesCount << " done. (exec: "
+            << execTime.count() << " ms)" << std::endl;
     }
 
     // Writing .csv file with bounding box positions
@@ -92,7 +103,7 @@ int main(int argc, char** argv)
     } else {
         csvFile << "frame,x,y,w,h\n";
 
-        for (int i = 0; i < framesCount; ++i) {
+        for (int i = 0; i < framesCount; i += framesInterval) {
             csvFile << i << "," 
                     << boundingBoxes[i].x << "," 
                     << boundingBoxes[i].y << "," 

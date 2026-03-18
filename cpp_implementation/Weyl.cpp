@@ -63,6 +63,15 @@ void Weyl::Image::NormalizeImageData(const std::vector<uint32_t> &data, Image &i
     NormalizeImageData(data, min, max, image);
 }
 
+
+void Weyl::Image::ScaleImageData(Image &image, const uint8_t scaleFactor)
+{
+    for (size_t i = 0; i < image.Img.size(); i++) {
+        image.Img[i] *= scaleFactor;
+    }
+}
+
+
 uint32_t Weyl::Core::WeylDiscrepancy(const Image::Image& image)
 {
     int width = image.Width, height = image.Height;
@@ -449,27 +458,28 @@ int Weyl::PatchMatching(const Image::Image &image, const Image::Image &patch, Im
 
 
 void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& imgRight, 
-                         std::vector<uint32_t>& dispLeft, std::vector<uint32_t>& dispRight, 
+                         Image::Image& dispLeft, Image::Image& dispRight, 
                          const int patchSize, const int maxDisparity) 
 {
     int width = imgLeft.Width;
     int height = imgLeft.Height;
     int radius = patchSize / 2;
 
-    dispLeft.assign(width * height, 0);
-    dispRight.assign(width * height, 0);
+    dispLeft.Width  = width; dispLeft.Height  = height; dispLeft.Channels  = 1;
+    dispRight.Width = width; dispRight.Height = height; dispRight.Channels = 1;
+
+    dispLeft.Img.assign(width * height, 0);
+    dispRight.Img.assign(width * height, 0);
 
     Image::Image diffBuffer(patchSize, patchSize);
 
-    for (int y = radius; y < height - radius; ++y) 
-    {
-        for (int x = radius; x < width - radius; ++x) 
-        {
+    for (int y = radius; y < height - radius; ++y) {
+        for (int x = radius; x < width - radius; ++x) {
+            
             uint32_t minWeyl = UINT32_MAX;
             int best_d = 0;
 
-            for (int d = 0; d <= maxDisparity; ++d) 
-            {
+            for (int d = 0; d <= maxDisparity; ++d) {
                 if (x - d - radius < 0) continue;
 
                 for (int j = -radius; j <= radius; ++j) {
@@ -489,25 +499,22 @@ void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& i
                     best_d = d;
                 }
             }
-            dispLeft[y * width + x] = best_d;
+            dispLeft.Img[y * width + x] = best_d;
         }
     }
 
-    for (int y = radius; y < height - radius; ++y) 
-    {
-        for (int x = radius; x < width - radius; ++x) 
-        {
+    for (int y = radius; y < height - radius; ++y) {
+        for (int x = radius; x < width - radius; ++x) {
             uint32_t minWeyl = UINT32_MAX;
             int best_d = 0;
 
-            for (int d = 0; d <= maxDisparity; ++d) 
-            {
+            for (int d = 0; d <= maxDisparity; ++d) {
                 if (x + d + radius >= width) continue;
 
                 for (int j = -radius; j <= radius; ++j) {
                     for (int i = -radius; i <= radius; ++i) {
                         int idxR = (y + j) * width + (x + i);
-                        int idxL = (y + j) * width + (x + d + i); 
+                        int idxL = (y + j) * width + (x + d + i);
                         
                         int diff = std::abs(imgRight.Img[idxR] - imgLeft.Img[idxL]);
                         diffBuffer.Img[(j + radius) * patchSize + (i + radius)] = static_cast<uint8_t>(diff);
@@ -521,7 +528,65 @@ void Weyl::DenseCorresponding(const Image::Image& imgLeft, const Image::Image& i
                     best_d = d;
                 }
             }
-            dispRight[y * width + x] = best_d * 255.0f;
+            dispRight.Img[y * width + x] = best_d;
+        }
+    }
+}
+
+
+void Weyl::LeftRightConsistency(const Image::Image &dispLeftIn, const Image::Image &dispRightIn,
+    Image::Image &dispLeftOut, Image::Image &dispRightOut, const int threshold)
+{
+    int width = dispLeftIn.Width;
+    int height = dispLeftIn.Height;
+
+    dispLeftOut.Width = width; dispLeftOut.Height = height; dispLeftOut.Channels = 1;
+    dispLeftOut.Img.assign(width * height, 0);
+
+    dispRightOut.Width = width; dispRightOut.Height = height; dispRightOut.Channels = 1;
+    dispRightOut.Img.assign(width * height, 0);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int idx = y * width + x;
+            int dL = dispLeftIn.Img[idx];
+
+            if (dL == 0) continue;
+
+            int xRight = x - dL;
+            if (xRight >= 0 && xRight < width) {
+                int dR = dispRightIn.Img[y * width + xRight];
+
+                if (std::abs(dL - dR) <= threshold) {
+                    dispLeftOut.Img[idx] = dL;
+                } else {
+                    dispLeftOut.Img[idx] = 0;
+                }
+            } else {
+                dispLeftOut.Img[idx] = 0;
+            }
+        }
+    }
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int idx = y * width + x;
+            int dR = dispRightIn.Img[idx];
+
+            if (dR == 0) continue;
+
+            int xLeft = x + dR;
+            if (xLeft >= 0 && xLeft < width) {
+                int dL = dispLeftIn.Img[y * width + xLeft];
+
+                if (std::abs(dR - dL) <= threshold) {
+                    dispRightOut.Img[idx] = dR;
+                } else {
+                    dispRightOut.Img[idx] = 0;
+                }
+            } else {
+                dispRightOut.Img[idx] = 0;
+            }
         }
     }
 }

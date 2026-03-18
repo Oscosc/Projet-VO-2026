@@ -590,3 +590,41 @@ void Weyl::LeftRightConsistency(const Image::Image &dispLeftIn, const Image::Ima
         }
     }
 }
+
+
+double Weyl::Metrics::MeanSquaredError(const Image::Image &reference, const Image::Image &estimation)
+{
+    if(reference.Width != estimation.Width || reference.Height != estimation.Height) {
+        std::cerr << "[ERROR] Cannot evaluate MSE on images with different sizes.\n";
+        return -1.0;
+    }
+
+    uint32_t sumSquaredError = 0;
+    for(size_t i = 0; i < reference.Img.size(); i++) {
+        sumSquaredError += std::abs(reference.Img[i] - estimation.Img[i]);
+    }
+
+    return static_cast<double>(sumSquaredError) / (reference.Width * reference.Height);
+}
+
+double Weyl::Metrics::BadPixelRate(const Image::Image &reference, const Image::Image &estimation, const int tolerance)
+{
+    if(reference.Width != estimation.Width || reference.Height != estimation.Height) {
+        std::cerr << "[ERROR] Cannot evaluate BPR on images with different sizes.\n";
+        return -1.0;
+    }
+
+    int totalPixelsEvaluables = 0;
+    int totalBadPixels = 0;
+
+    for(size_t i = 0; i < reference.Img.size(); i++) {
+        if(reference.Img[0] == 0)
+            continue;
+        
+        totalPixelsEvaluables++;
+        if(estimation.Img[i] < (reference.Img[i] - tolerance) || estimation.Img[i] > (reference.Img[i] + tolerance))
+            totalBadPixels++;
+    }
+
+    return static_cast<double>(totalBadPixels) / totalPixelsEvaluables;
+}

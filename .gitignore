@@ -8,3 +8,4 @@ cpp_implementation/obj
 weyl_dense_corresponding
 weyl_patch_matching
 weyl_benchmark
+weyl_metrics

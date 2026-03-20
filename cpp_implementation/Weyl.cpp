@@ -601,7 +601,8 @@ double Weyl::Metrics::MeanSquaredError(const Image::Image &reference, const Imag
 
     uint32_t sumSquaredError = 0;
     for(size_t i = 0; i < reference.Img.size(); i++) {
-        sumSquaredError += std::abs(reference.Img[i] - estimation.Img[i]);
+        uint32_t error = std::abs(reference.Img[i] - estimation.Img[i]);
+        sumSquaredError += error * error;
     }
 
     return static_cast<double>(sumSquaredError) / (reference.Width * reference.Height);
@@ -618,7 +619,7 @@ double Weyl::Metrics::BadPixelRate(const Image::Image &reference, const Image::I
     int totalBadPixels = 0;
 
     for(size_t i = 0; i < reference.Img.size(); i++) {
-        if(reference.Img[0] == 0)
+        if(reference.Img[i] == 0)
             continue;
         
         totalPixelsEvaluables++;

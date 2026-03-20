@@ -22,6 +22,14 @@ declare -a DATASETS=(
     "2001 sawtooth im2.ppm im6.ppm 9 60 8 false"
     "2001 venus    im2.ppm im6.ppm 9 60 8 true"
     "2001 venus    im2.ppm im6.ppm 9 60 8 false"
+
+    "2003 cones    im2.ppm im6.ppm 9 60 4 true"
+    "2003 cones    im2.ppm im6.ppm 9 60 4 false"
+    "2003 teddy    im2.ppm im6.ppm 9 60 4 true"
+    "2003 teddy    im2.ppm im6.ppm 9 60 4 false"
+
+    "2005 Art      view1_third.png view5_third.png 9 200 1 true"
+    "2005 Art      view1_third.png view5_third.png 9 200 1 false"
 )
 
 echo "=========================================================="

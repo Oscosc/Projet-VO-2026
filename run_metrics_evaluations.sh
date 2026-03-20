@@ -10,15 +10,15 @@ if [ ! -f "$EXEC" ]; then
 fi
 
 declare -a DATASETS=(
-    "2001 barn_1   im2.ppm im6.ppm"
-    "2001 barn_2   im2.ppm im6.ppm"
-    "2001 bull     im2.ppm im6.ppm"
-    "2001 poster   im2.ppm im6.ppm"
-    "2001 sawtooth im2.ppm im6.ppm"
-    "2001 venus    im2.ppm im6.ppm"
-    "2003 cones    im2.ppm im6.ppm"
-    "2003 teddy    im2.ppm im6.ppm"
-    "2005 Art      view1_third.png view5_third.png"
+    "2001 barn_1   im2.ppm im6.ppm 8"
+    "2001 barn_2   im2.ppm im6.ppm 8"
+    "2001 bull     im2.ppm im6.ppm 8"
+    "2001 poster   im2.ppm im6.ppm 8"
+    "2001 sawtooth im2.ppm im6.ppm 8"
+    "2001 venus    im2.ppm im6.ppm 8"
+    "2003 cones    im2.ppm im6.ppm 4"
+    "2003 teddy    im2.ppm im6.ppm 4"
+    "2005 Art      view1_third.png view5_third.png 3"
 )
 
 echo "=========================================================="
@@ -26,7 +26,7 @@ echo "STARTING DENSE CORRESPONDING EVALUATION"
 echo "=========================================================="
 
 for data in "${DATASETS[@]}"; do
-    read -r YEAR SCENE L_IMG R_IMG <<< "$data"
+    read -r YEAR SCENE L_IMG R_IMG DISP_COEFF <<< "$data"
 
     IN_DIR="$DATA_BASE/$YEAR/$SCENE"
     OUT_DIR="$RES_BASE/$YEAR/$SCENE"
@@ -63,7 +63,7 @@ for data in "${DATASETS[@]}"; do
             fi
 
             echo "     * Testing $TYPE version..."
-            $EXEC "$GT_PATH" "$EST_PATH"
+            $EXEC "$GT_PATH" "$EST_PATH" $DISP_COEFF
         done
     done
 done

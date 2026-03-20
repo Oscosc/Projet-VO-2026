@@ -28,8 +28,8 @@ declare -a DATASETS=(
     "2003 teddy    im2.ppm im6.ppm 9 60 4 true"
     "2003 teddy    im2.ppm im6.ppm 9 60 4 false"
 
-    "2005 Art      view1_third.png view5_third.png 9 200 1 true"
-    "2005 Art      view1_third.png view5_third.png 9 200 1 false"
+    "2005 Art      view1_third.png view5_third.png 9 200 3 true"
+    "2005 Art      view1_third.png view5_third.png 9 200 3 false"
 )
 
 echo "=========================================================="

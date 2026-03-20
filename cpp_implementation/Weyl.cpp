@@ -13,9 +13,20 @@ void Weyl::Image::LoadImage(Image &image, std::string path)
         exit(1);
     }
 
+    // OpenCV gray scale equivalence
     image.Img.resize(image.Width * image.Height);
-    for (int i = 0; i < image.Width * image.Height; ++i) {
-        image.Img[i] = stbiImage[i * image.Channels];
+    if (image.Channels >= 3) {
+        for (int i = 0; i < image.Width * image.Height; ++i) {
+            int r = stbiImage[i * image.Channels];
+            int g = stbiImage[i * image.Channels + 1];
+            int b = stbiImage[i * image.Channels + 2];
+            image.Img[i] = static_cast<uint8_t>(0.299f * r + 0.587f * g + 0.114f * b);
+        }
+        image.Channels = 1;
+    } else {
+        for (int i = 0; i < image.Width * image.Height; ++i) {
+            image.Img[i] = stbiImage[i * image.Channels];
+        }
     }
 
     stbi_image_free(stbiImage);
